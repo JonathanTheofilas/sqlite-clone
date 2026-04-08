@@ -117,15 +117,15 @@ const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
 const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
 void serialize_row(Row* source, void* destination) {
-  memcpy(destination + ID_OFFSET, &(source->id), ID_SIZE);
-  memcpy(destination + USERNAME_OFFSET, &(source->username), USERNAME_SIZE);
-  memcpy(destination + EMAIL_OFFSET, &(source->email), EMAIL_SIZE);
+  memcpy((char*)destination + ID_OFFSET, &(source->id), ID_SIZE);
+  memcpy((char*)destination + USERNAME_OFFSET, &(source->username), USERNAME_SIZE);
+  memcpy((char*)destination + EMAIL_OFFSET, &(source->email), EMAIL_SIZE);
 }
 
 void deserialize_row(void* source, Row* destination) {
-  memcpy(&(destination->id), source + ID_OFFSET, ID_SIZE);
-  memcpy(&(destination->username), source + USERNAME_OFFSET, USERNAME_SIZE);
-  memcpy(&(destination->email), source + EMAIL_OFFSET, EMAIL_SIZE);
+  memcpy(&(destination->id), (char*)source + ID_OFFSET, ID_SIZE);
+  memcpy(&(destination->username), (char*)source + USERNAME_OFFSET, USERNAME_SIZE);
+  memcpy(&(destination->email), (char*)source + EMAIL_OFFSET, EMAIL_SIZE);
 }
 
 #define TABLE_MAX_PAGES 1000
@@ -151,7 +151,7 @@ typedef struct {
 } Cursor;
 
 void* get_page(Pager* pager, uint32_t page_num) {
-  if (page_num > TABLE_MAX_PAGES) {
+  if (page_num >= TABLE_MAX_PAGES) {
     printf("Tried to fetch page number out of bounds. %d > %d\n", page_num,
            TABLE_MAX_PAGES);
     exit(EXIT_FAILURE);
@@ -246,15 +246,15 @@ const uint32_t LEAF_NODE_LEFT_SPLIT_COUNT =
     (LEAF_NODE_MAX_CELLS + 1) - LEAF_NODE_RIGHT_SPLIT_COUNT;
 
 uint32_t* leaf_node_num_cells(void* node) {
-  return node + LEAF_NODE_NUM_CELLS_OFFSET;
+  return (uint32_t*)((char*)node + LEAF_NODE_NUM_CELLS_OFFSET);
 }
 
 uint32_t* leaf_node_next_leaf(void* node) {
-  return node + LEAF_NODE_NEXT_LEAF_OFFSET;
+  return (uint32_t*)((char*)node + LEAF_NODE_NEXT_LEAF_OFFSET);
 }
 
 void* leaf_node_cell(void* node, uint32_t cell_num) {
-  return node + LEAF_NODE_HEADER_SIZE + cell_num * LEAF_NODE_CELL_SIZE;
+  return (char*)node + LEAF_NODE_HEADER_SIZE + cell_num * LEAF_NODE_CELL_SIZE;
 }
 
 uint32_t* leaf_node_key(void* node, uint32_t cell_num) {
@@ -262,27 +262,27 @@ uint32_t* leaf_node_key(void* node, uint32_t cell_num) {
 }
 
 void* leaf_node_value(void* node, uint32_t cell_num) {
-  return leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
+  return (char*)leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
 }
 
 NodeType get_node_type(void* node) {
-  uint8_t value = *((uint8_t*)(node + NODE_TYPE_OFFSET));
+  uint8_t value = *((uint8_t*)((char*)node + NODE_TYPE_OFFSET));
   return (NodeType)value;
 }
 
 void set_node_type(void* node, NodeType type) {
   uint8_t value = type;
-  *((uint8_t*)(node + NODE_TYPE_OFFSET)) = value;
+  *((uint8_t*)((char*)node + NODE_TYPE_OFFSET)) = value;
 }
 
 bool is_root(void* node) {
-  uint8_t value = *((uint8_t*)(node + IS_ROOT_OFFSET));
+  uint8_t value = *((uint8_t*)((char*)node + IS_ROOT_OFFSET));
   return (bool)value;
 }
 
 void set_is_root(void* node, bool is_root) {
   uint8_t value = is_root;
-  *((uint8_t*)(node + IS_ROOT_OFFSET)) = value;
+  *((uint8_t*)((char*)node + IS_ROOT_OFFSET)) = value;
 }
 
 void initialize_leaf_node(void* node) {
@@ -298,15 +298,15 @@ void initialize_internal_node(void* node) {
 }
 
 uint32_t* internal_node_num_keys(void* node) {
-  return node + INTERNAL_NODE_NUM_KEYS_OFFSET;
+  return (uint32_t*)((char*)node + INTERNAL_NODE_NUM_KEYS_OFFSET);
 }
 
 uint32_t* internal_node_right_child(void* node) {
-  return node + INTERNAL_NODE_RIGHT_CHILD_OFFSET;
+  return (uint32_t*)((char*)node + INTERNAL_NODE_RIGHT_CHILD_OFFSET);
 }
 
 uint32_t* internal_node_cell(void* node, uint32_t cell_num) {
-  return node + INTERNAL_NODE_HEADER_SIZE + cell_num * INTERNAL_NODE_CELL_SIZE;
+  return (uint32_t*)((char*)node + INTERNAL_NODE_HEADER_SIZE + cell_num * INTERNAL_NODE_CELL_SIZE);
 }
 
 uint32_t* internal_node_child(void* node, uint32_t child_num) {
@@ -322,7 +322,7 @@ uint32_t* internal_node_child(void* node, uint32_t child_num) {
 }
 
 uint32_t* internal_node_key(void* node, uint32_t key_num) {
-  return internal_node_cell(node, key_num) + INTERNAL_NODE_CHILD_SIZE;
+  return (uint32_t*)((char*)internal_node_cell(node, key_num) + INTERNAL_NODE_CHILD_SIZE);
 }
 
 uint32_t get_node_max_key(void* node) {
@@ -331,6 +331,9 @@ uint32_t get_node_max_key(void* node) {
       return *internal_node_key(node, *internal_node_num_keys(node) - 1);
     case NODE_LEAF:
       return *leaf_node_key(node, *leaf_node_num_cells(node) - 1);
+    default:
+      printf("Unknown node type\n");
+      exit(EXIT_FAILURE);
   }
 }
 
@@ -404,7 +407,7 @@ MetaCommandResult do_meta_command(InputBuffer* input_buffer, Table* table) {
 PrepareResult prepare_insert(InputBuffer* input_buffer, Statement* statement) {
   statement->type = STATEMENT_INSERT;
 
-  char* keyword = strtok(input_buffer->buffer, " ");
+  strtok(input_buffer->buffer, " ");
   char* id_string = strtok(NULL, " ");
   char* username = strtok(NULL, " ");
   char* email = strtok(NULL, " ");
@@ -445,16 +448,17 @@ PrepareResult prepare_statement(InputBuffer* input_buffer,
 }
 
 ExecuteResult execute_insert(Statement* statement, Table* table) {
-  void* node = get_page(table->pager, table->root_page_num);
-  uint32_t num_cells = (*leaf_node_num_cells(node));
-
   Row* row_to_insert = &(statement->row_to_insert);
   uint32_t key_to_insert = row_to_insert->id;
   Cursor* cursor = table_find(table, key_to_insert);
 
+  void* leaf = get_page(table->pager, cursor->page_num);
+  uint32_t num_cells = *leaf_node_num_cells(leaf);
+
   if (cursor->cell_num < num_cells) {
-    uint32_t key_at_index = *leaf_node_key(node, cursor->cell_num);
+    uint32_t key_at_index = *leaf_node_key(leaf, cursor->cell_num);
     if (key_at_index == key_to_insert) {
+      free(cursor);
       return EXECUTE_DUPLICATE_KEY;
     }
   }
@@ -487,6 +491,9 @@ ExecuteResult execute_statement(Statement* statement, Table* table) {
       return execute_insert(statement, table);
     case (STATEMENT_SELECT):
       return execute_select(statement, table);
+    default:
+      printf("Unknown statement type\n");
+      exit(EXIT_FAILURE);
   }
 }
 
@@ -579,13 +586,6 @@ void db_close(Table* table) {
     printf("Error closing db file.\n");
     exit(EXIT_FAILURE);
   }
-  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
-    void* page = pager->pages[i];
-    if (page) {
-      free(page);
-      pager->pages[i] = NULL;
-    }
-  }
   free(pager);
   free(table);
 }
@@ -644,6 +644,9 @@ Cursor* internal_node_find(Table* table, uint32_t page_num, uint32_t key) {
       return leaf_node_find(table, child_num, key);
     case NODE_INTERNAL:
       return internal_node_find(table, child_num, key);
+    default:
+      printf("Unknown node type\n");
+      exit(EXIT_FAILURE);
   }
 }
 
@@ -776,7 +779,6 @@ void create_new_root(Table* table, uint32_t right_child_page_num) {
   */
 
   void* root = get_page(table->pager, table->root_page_num);
-  void* right_child = get_page(table->pager, right_child_page_num);
   uint32_t left_child_page_num = get_unused_page_num(table->pager);
   void* left_child = get_page(table->pager, left_child_page_num);
 

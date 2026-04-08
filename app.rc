@@ -1,0 +1,56 @@
+/*
+ * app.rc — Windows resource file for sqlite_clone.exe
+ *
+ * Compile with:
+ *   windres app.rc -O coff -o app.res
+ *
+ * If you have an icon file, place it as "app.ico" in the same
+ * directory.  The Makefile's "make gui" target compiles this
+ * automatically.  If app.ico is missing, the exe will use the
+ * default Windows application icon.
+ */
+
+#include <windows.h>
+
+/* ── Application icon ──────────────────────────────────────────────── */
+/* Comment out or change the filename if you have a custom icon.       */
+#ifdef _WIN32
+/* Only include the icon line if the file exists.
+   windres will error if the file is missing, so we guard with a macro
+   that you can define on the windres command line:
+     windres -DHAVE_ICON app.rc -O coff -o app.res               */
+#endif
+
+#ifdef HAVE_ICON
+1 ICON "app.ico"
+#endif
+
+/* ── Version information ───────────────────────────────────────────── */
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION     1, 0, 0, 0
+    PRODUCTVERSION  1, 0, 0, 0
+    FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+    FILEFLAGS       0
+    FILEOS          VOS_NT_WINDOWS32
+    FILETYPE        VFT_APP
+    FILESUBTYPE     VFT_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"   /* Language: English (US), Code page: Windows-1252 */
+        BEGIN
+            VALUE "CompanyName",      "sqlite-clone"
+            VALUE "FileDescription",  "SQLite Clone — hand-rolled B-tree DB"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "sqlite_clone"
+            VALUE "LegalCopyright",   ""
+            VALUE "OriginalFilename", "sqlite_clone.exe"
+            VALUE "ProductName",      "SQLite Clone"
+            VALUE "ProductVersion",   "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1252
+    END
+END
